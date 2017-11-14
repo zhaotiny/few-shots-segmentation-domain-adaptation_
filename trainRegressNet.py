@@ -18,7 +18,7 @@ from Dataset import Dataset
 rng = numpy.random
 # Import arguments
 parser = argparse.ArgumentParser()
-logs_path = './tensorflow_logs/example/'
+logs_path = './logs"'
 parser.add_argument('--pair', type=str, required=True)
 args = parser.parse_args()
 
@@ -32,7 +32,6 @@ num_input = 577 #  data input (64 * 3 * 3 + 1)
 n_hidden_1 = 1024 # 1st layer number of neurons
 n_hidden_2 = 4096 # 2nd layer number of neurons
 n_hidden_3 = 1024 # 3rd layder number of neurous
-num_input = 577 # output total classes (0-9 digits)
 dropout = 0.5
 alpha = 0 #0.01
 
@@ -132,9 +131,9 @@ with tf.Session() as sess:
     sess.run(init)
 
      # op to write logs to Tensorboard
-    summary_writer = tf.summary.FileWriter("./logs", sess.graph)
+    summary_writer = tf.summary.FileWriter(logs_path, sess.graph)
     data = Dataset(args.pair, num_input)
-    pdb.set_trace()
+   # pdb.set_trace()
     for step in range(1, num_steps+1):
         batch_x, batch_y = data.next_batch(batch_size)
         sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
