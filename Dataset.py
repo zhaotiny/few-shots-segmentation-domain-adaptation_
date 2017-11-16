@@ -2,16 +2,21 @@ import numpy as np
 import  pdb
 class Dataset(object):
 
-    def __init__(self, file, dimension):
+    def __init__(self, file, dimension, val = False):
         self.input = np.array([], dtype=np.float32).reshape(0,dimension)
         self.target = np.array([], dtype=np.float32).reshape(0,dimension)
         self.load_file(file)
         self.index = 0
+        self.val = val;
+        if (self.val == True):
+            self.train_size = int(0.75 * self.total_size);
+        else:
+            self.train_size = self.total_size
 
     def unison_shuffled(self):
-        p = np.random.permutation(len(self.input))
-        self.input = self.input[p]
-        self.target = self.target[p]
+        p = np.random.permutation(self.train_size)
+        self.input[:self.train_size] = self.input[p]
+        self.target[:self.train_size] = self.target[p]
 
     def computeStatic(self):
         self.num_std = 3
@@ -54,9 +59,11 @@ class Dataset(object):
 
     ## normalize the data to [0, 1], manually cut the weights if it's outside 3 standard deviation
     def normalize_input(self, input):
+
         input[input < self.min_xtd_in] = self.min_xtd_in;
         input[input > self.max_xtd_in] = self.max_xtd_in;
         input = (input - self.min_xtd_in) / (self.max_xtd_in - self.min_xtd_in)
+     #   input = (input - self.mean_in) / self.std_in
         return input
 
     def denormalize_input(self, input):
@@ -67,6 +74,7 @@ class Dataset(object):
         target[target < self.min_xtd_out] = self.min_xtd_out;
         target[target > self.max_xtd_out] = self.max_xtd_out;
         target = (target - self.min_xtd_out) / (self.max_xtd_out - self.min_xtd_out)
+     #   target = (target - self.mean_out) / self.std_out
         return target
 
     def denormalize_target(self, target):
@@ -76,17 +84,21 @@ class Dataset(object):
     def next_batch(self, batchsize):
         if (self.index == 0):
             self.unison_shuffled()
-        if (self.index + batchsize >= self.total_size):
+        if (self.index + batchsize >= self.train_size):
             index = self.index
             self.index = 0
-            return self.normalize_input(self.input[index:]), \
-                   self.normalize_target(self.target[index:])
+            return self.normalize_input(self.input[index: self.train_size]), \
+                   self.normalize_target(self.target[index: self.train_size])
             #return self.input[index:], self.target[index:]
         index = self.index
         self.index += batchsize
         #return self.input[index: self.index], self.target[index: self.index]
         return self.normalize_input(self.input[index: self.index]), \
                self.normalize_target(self.target[index: self.index])
+
+    def val_set(self):
+        return self.normalize_input(self.input[self.train_size:]), \
+               self.normalize_target(self.target[self.train_size:])
 
 
 
