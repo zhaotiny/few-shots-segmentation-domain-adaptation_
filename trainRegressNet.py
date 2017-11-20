@@ -1,3 +1,5 @@
+##############################
+## train a regression network that maps the models learnt from small samples to models learnt from large samples
 import numpy as np
 import matplotlib.pyplot as plt
 import os.path
@@ -9,7 +11,6 @@ import pylab
 import pdb
 from sklearn.preprocessing import normalize
 import sys
-import caffe
 import pdb
 import tensorflow as tf
 import numpy
@@ -21,14 +22,14 @@ parser = argparse.ArgumentParser()
 logs_path = './logs'
 output_dir = './models'
 parser.add_argument('--pair', type=str, required=True)
-parser.add_argument('--model', type = str, default= "", \
+parser.add_argument('--regmodel', type = str, default= "", \
                      help='pretrained model')
 args = parser.parse_args()
 
 
 # Parameter
 learning_rate = 0.01
-num_steps = 5000
+num_steps = 50000
 batch_size = 1000
 display_step = 1000
 # Network Parameters
@@ -36,8 +37,7 @@ num_input = 577 #  data input (64 * 3 * 3 + 1)
 n_hidden_1 = 1024 # 1st layer number of neurons
 n_hidden_2 = 256 # 2nd layer number of neurons
 n_hidden_3 = 1024 # 3rd layder number of neurous
-dropout = 0.5
-alpha = 0.01
+alpha = 0.01 # alpha for leaky relu
 
 # tf Graph input
 X = tf.placeholder("float", [None, num_input])
@@ -152,12 +152,11 @@ with tf.Session() as sess:
 
     # Run the initializer
     sess.run(init)
-    pdb.set_trace()
-    if (args.model != ""):
+    if (args.regmodel != ""):
         load(args.model, sess, ignore_missing=True)
      # op to write logs to Tensorboard
     summary_writer = tf.summary.FileWriter(logs_path, sess.graph)
-    data = Dataset(args.pair, num_input, True)
+    data = Dataset(args.pair, val = True)
     for step in range(1, num_steps+1):
         batch_x, batch_y = data.next_batch(batch_size)
         sess.run(train_op, feed_dict={X: batch_x, Y: batch_y, phase: True})
@@ -165,8 +164,8 @@ with tf.Session() as sess:
         if step % display_step == 0 or step == 1:
             [loss, pred, lr_r, summary] = sess.run([loss_op, y_pred, lr, merged_summary_op], \
                                                    feed_dict={X: batch_x, Y: batch_y, phase: True})
-            if (step > 200):
-                summary_writer.add_summary(summary, step)
+          #  if (step > 200):
+            summary_writer.add_summary(summary, step)
 
             print("Step " + str(step) + ", mean weights: pred= " + \
                   "{:.6f}".format(np.mean(pred)) + " input= {:.6f}".format(np.mean(batch_x)) + " target= {:.6f}".format(np.mean(batch_y)))
@@ -180,73 +179,7 @@ with tf.Session() as sess:
     print("Optimization Finished!")
     snapshot_npy(sess, num_steps)
     # Testing
-    pdb.set_trace()
     batch_x, batch_y = data.val_set()
     [loss] = sess.run([loss_op], feed_dict={X: batch_x, Y: batch_y, phase: False})
     print("Testing loss: {:.6f}".format(loss));
 
-
-'''
-weights = {
-    'h1': tf.Variable(tf.random_normal([num_input, n_hidden_1])),
-    'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-    'h3': tf.Variable(tf.random_normal([n_hidden_2, n_hidden_3])),
-    'hout': tf.Variable(tf.random_normal([n_hidden_3, num_input]))
-}
-biases = {
-    'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-    'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-    'b3': tf.Variable(tf.random_normal([n_hidden_3])),
-    'bout': tf.Variable(tf.random_normal([num_input]))
-}
-
-init_weights = tf.truncated_normal_initializer(0.0, stddev=0.01)
-init_biases = tf.constant_initializer(0.0)
-weights = {
-    'h1': tf.get_variable('h1', [num_input, n_hidden_1], initializer=init_weights),
-    'h2': tf.get_variable('h2', [n_hidden_1, n_hidden_2], initializer=init_weights),
-    'h3': tf.get_variable('h3', [n_hidden_2, n_hidden_3], initializer=init_weights),
-    'hout': tf.get_variable('hout', [n_hidden_3, num_input], initializer=init_weights)
-}
-biases = {
-    'b1': tf.get_variable('b1', [n_hidden_1], initializer=init_biases),
-    'b2': tf.get_variable('b2', [n_hidden_2], initializer=init_biases),
-    'b3': tf.get_variable('b3', [n_hidden_3], initializer=init_biases),
-    'bout': tf.get_variable('bout', [num_input], initializer=init_biases)
-}
-def neural_net(x):
-    fc1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
-    fc1 = lrelu(fc1, alpha)
-    #fc1 = tf.nn.dropout(fc1, dropout)
-    fc2 = tf.add(tf.matmul(fc1, weights['h2']), biases['b2'])
-    fc2 = lrelu(fc2, alpha)
-    #fc2 = tf.nn.dropout(fc2, dropout)
-    fc3 = tf.add(tf.matmul(fc2, weights['h3']), biases['b3'])
-    fc3 = lrelu(fc3, alpha)
-   # fc3 = tf.nn.dropout(fc3, dropout)
-    output_layer = tf.matmul(fc3, weights['hout'])+ biases['bout']
-    output_layer = tf.nn.sigmoid(output_layer)
-    return output_layer
-'''
-'''
-def neural_net(x):
-    fc1 = tf.nn.xw_plus_b(x, weights['h1'], biases['b1'])
-    fc1 = tf.contrib.layers.batch_norm(fc1,
-                                          center=True, scale=True,
-                                          is_training=phase, scope='bn1', updates_collections=None)
-    fc1 = tf.nn.relu(fc1)
-    fc2 = tf.nn.xw_plus_b(fc1, weights['h2'], biases['b2'])
-    fc2 = tf.contrib.layers.batch_norm(fc2,
-                                          center=True, scale=True,
-                                          is_training=phase, scope='bn2', updates_collections=None)
-    fc2 = tf.nn.relu(fc2)
-
-    fc3 = tf.nn.xw_plus_b(fc2, weights['h3'], biases['b3'])
-    fc3 = tf.contrib.layers.batch_norm(fc3,
-                                          center=True, scale=True,
-                                          is_training=phase, scope='bn3', updates_collections=None)
-    fc3 = tf.nn.relu(fc3)
-    fc4 = tf.nn.xw_plus_b(fc3, weights['hout'], biases['bout'])
-    fc4 = tf.nn.sigmoid(fc4)
-    return fc4
-'''
