@@ -12,3 +12,8 @@ CUDA_VISIBLE_DEVICES=0 python trainRegressNet2.py --pair=model_pair_6.txt --regm
 reg1: small regularization
 
 28 -> 50 -> 1 -> 2000 -> reg1 -> 16
+
+
+
+
+CUDA_VISIBLE_DEVICES=0 python ./SegNet/Scripts/test_regression.py --model ./SegNet/Models/segnet_inference_6_city_val.prototxt --weights ./SegNet/Models/city_test_models_cityall/segnet1_2_iter_5000.caffemodel --iter 500 --list ./SegNet/cityscape/cityValIdx.txt --save ./SegNet/cityscape/reg_test/ --conv ./SegNet/Scripts/tmp.npy

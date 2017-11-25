@@ -97,6 +97,7 @@ class Dataset(object):
                 self.train_size = int(0.8 * self.total_size);
             else:
                 self.train_size = self.total_size
+            self.union_shuffled()
         else:
             self.defsta = True
         self.computeStatic()

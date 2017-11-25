@@ -15,24 +15,32 @@ import pdb
 import tensorflow as tf
 import numpy
 import matplotlib.pyplot as plt
+import os
 from Dataset import Dataset
 from function_module import regress_net, get_variable, load, snapshot_npy
 rng = numpy.random
+import glob
 # Import arguments
 parser = argparse.ArgumentParser()
-logs_path = './logs'
+logs_path = './logs1'
 output_dir = './models'
 parser.add_argument('--pair', type=str, required=True)
 parser.add_argument('--regmodel', type = str, default= "", \
                      help='pretrained model')
 args = parser.parse_args()
 
+if (not os.path.exists(logs_path)):
+    os.mkdir(logs_path)
+files = glob.glob(logs_path + '/*')
+for file in files:
+    if (os.path.isfile(file)):
+        os.remove(file)
 
 # Parameter
 learning_rate = 0.01
-num_steps = 50000
+num_steps = 40000
 batch_size = 1000
-display_step = 200
+display_step = 400
 # Network Parameters
 num_input = 577 #  data input (64 * 3 * 3 + 1)
 n_hidden_1 = 1024 # 1st layer number of neurons
@@ -102,7 +110,7 @@ with tf.Session() as sess:
             print("Testing loss: {:.6f} :{:.6f}".format(loss, loss2));
 
         if (step % 10000 == 0):
-            snapshot_npy(sess, output_dir, "final_", step)
+            snapshot_npy(sess, output_dir, "11_", step)
     print("Optimization Finished!")
     # Testing
     batch_x, batch_y = data.val_set()

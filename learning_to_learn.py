@@ -162,9 +162,10 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     small_W = np.reshape(convW, (NUM_CLASSES, -1))
     small_B = convB[:, np.newaxis]
     small_weights = np.hstack((small_W, small_B))
-
     convW = conv_caffe_to_tf(convW, NUM_CLASSES)
+
     for step in range(1, num_steps+1):
+
         net.forward()
         image = net.blobs['data'].data
         features = net.blobs['conv1_2_D'].data
@@ -181,6 +182,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
            # [pred, small, test_tf, summary] = sess.run([y_pred_seg_pred_prob, y_pred_seg_small_prob, pred_test_prob, merged_summary_op], \
             #                feed_dict={X: small_W, F: features, GT: label, phase: False, phase2: False, W2: convW, B2: convB, IMG: image2, LABEL: label2})
 
+
             [regl, segl, tl, lr2, summary] = sess.run([loss_reg_op, loss_seg_op, total_loss, lr, merged_summary_op],
                             feed_dict={X: small_weights, F: features, GT: label, phase: False, phase2: False, W2: convW, B2: convB, IMG: image2, LABEL: label})
 
@@ -188,6 +190,9 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
             print("Step " + str(step) + ", Minibatch Loss= " + \
                   "{:.5f} + {:.5f} = {:.5f}, learning rate: {:.5f}".format(regl, segl, tl, lr2))
+
+        if (step % 10000 == 0):
+            snapshot_npy(sess, output_dir, "final_", step)
            # pdb.set_trace()
             '''
             pred = visualize(pred)
@@ -226,8 +231,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         #    plt2.title("caffe Weights")
             plt2.show()
             '''
-        if (step % 10000 == 0):
-            snapshot_npy(sess, output_dir, "final_", step)
+
 
 
 
