@@ -85,17 +85,22 @@ def compare2(str11, str22):
 
 class Dataset(object):
 
-    def __init__(self, file, dimension = 577, val = False, defstat = False):
+    def __init__(self, file = "", dimension = 577, val = False, defstat = False):
         self.input = np.array([], dtype=np.float32).reshape(0,dimension)
         self.target = np.array([], dtype=np.float32).reshape(0,dimension)
         self.index = 0
         self.val = val;
         self.defstat = defstat
-        self.load_file(file)
-        if (self.val == True):
-            self.train_size = int(0.8 * self.total_size);
+        if (file != ""):
+            self.load_file(file)
+            if (self.val == True):
+                self.train_size = int(0.8 * self.total_size);
+            else:
+                self.train_size = self.total_size
         else:
-            self.train_size = self.total_size
+            self.defsta = True
+        self.computeStatic()
+
 
     def union_shuffled(self):
         p = np.random.permutation(self.train_size)
@@ -163,7 +168,6 @@ class Dataset(object):
             self.target = np.vstack((self.target, large_weight))
 
         self.total_size = self.input.shape[0]
-        self.computeStatic()
 
     ## normalize the data to [0, 1], manually cut the weights if it's outside 3 standard deviation
     def normalize_input(self, input):

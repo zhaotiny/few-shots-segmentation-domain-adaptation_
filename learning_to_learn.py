@@ -8,9 +8,12 @@ import math
 import pylab
 import pdb
 from sklearn.preprocessing import normalize
+import re
 caffe_root = '/home/selfdriving/zhaotiny/SegNet/caffe-segnet-cudnn52/' 			# Change this to the absolute directoy to SegNet Caffe
-logs_path = './logs2'
+logs_path = './logs3'
 output_dir = './models'
+import glob
+
 import sys
 sys.path.insert(0, caffe_root + 'python')
 import caffe
@@ -18,10 +21,9 @@ import pdb
 import tensorflow as tf
 import numpy
 import matplotlib.pyplot as plt
-import glob
+from function_module import visualize, prediction_net, cal_loss, regress_net, conv2d, \
+    sparse_conv, get_variable, regularization_loss, get_train_var, load, snapshot_npy, conv_caffe_to_tf
 from Dataset2 import Dataset2
-from function_module import  prediction_net, regress_net, \
-    load, snapshot_npy, get_variable, cal_loss, visualize, conv2d, conv_caffe_to_tf
 rng = numpy.random
 # Import arguments
 parser = argparse.ArgumentParser()
@@ -49,7 +51,7 @@ for file in files:
 height = 480
 width = 640
 n_channel = 64
-learning_rate = 0.01
+learning_rate = 0.005
 num_steps = 50000
 batch_size = 6
 NUM_CLASSES = batch_size
@@ -60,12 +62,10 @@ n_hidden_1 = 1024 # 1st layer number of neurons
 n_hidden_2 = 256 # 2nd layer number of neurons
 n_hidden_3 = 1024 # 3rd layder number of neurous
 alpha = 0.01 # alpha for leaky relu
-lambda1 = 10.0 # ratio between regression loss and seg loss
-lambda_min = 1.0
+lambda1 = 0.01 # weight decay
 
 # tf Graph input
 X = tf.placeholder("float", [batch_size, num_input])
-Y = tf.placeholder("float", [batch_size, num_input])
 F = tf.placeholder("float", [None, n_channel, height, width])
 GT = tf.placeholder("float", [None, 1, height, width])
 W2 = tf.placeholder("float", [3, 3, 64, NUM_CLASSES])
@@ -73,50 +73,46 @@ B2 = tf.placeholder("float", [NUM_CLASSES])
 IMG = tf.placeholder("float", [None, height, width, 3])
 LABEL = tf.placeholder("float", [None, 1, height, width])
 phase = tf.placeholder(tf.bool, name='phase')
+phase2 = tf.placeholder(tf.bool, name='phase2')
 global_step = tf.Variable(0, trainable=False)
-## decreasing weights for regression loss
-lambda_tf = tf.train.exponential_decay(lambda1, global_step,
-                                       1000, 0.8, staircase = True)
-lambda_tf = tf.maximum(tf.constant(lambda_min), lambda_tf)
 # decreasing learning rate
 lr = tf.train.exponential_decay(learning_rate, global_step,
                                 1000, 0.95, staircase=True)
 ## input data
 data = Dataset2(args.pair, val = False, defstat = True, numC = NUM_CLASSES)
-
-# stat from data
 max_xtd_out = tf.constant(data.max_xtd_out)
 min_xtd_out = tf.constant(data.min_xtd_out)
 max_xtd_in = tf.constant(data.max_xtd_in)
 min_xtd_in = tf.constant(data.min_xtd_in)
 
-##network architecture
-w_pred = regress_net(X, phase, num_input, n_hidden_1, n_hidden_2, n_hidden_3)
+# network architecture
+X_norm = (X - min_xtd_in) / (max_xtd_in - min_xtd_in)
+w_pred = regress_net(X_norm, phase, num_input, n_hidden_1, n_hidden_2, n_hidden_3)
 w_pred_denorm = w_pred * (max_xtd_out - min_xtd_out) + min_xtd_out
 y_pred_seg_pred = prediction_net(F, w_pred_denorm)
 y_pred_seg_pred_prob = tf.nn.softmax(y_pred_seg_pred, dim = 1)
-w_true = Y
+y_pred_seg_pred_fine = sparse_conv(F, NUM_CLASSES, 3, phase2, "conv")
 
-## define loss and optimizer
-loss_op = tf.reduce_mean(tf.pow(w_true - w_pred,  2)) #regression loss
-loss_seg_op = cal_loss(y_pred_seg_pred, GT, NUM_CLASSES)   ##segmentaion loss
-total_loss = lambda_tf * loss_op + loss_seg_op      ##total loss
+#define loss and optimizer
+# segmentaion loss
+loss_seg_op = cal_loss(y_pred_seg_pred_fine, GT, NUM_CLASSES)
+#regularization loss
+conv_W = get_variable("conv", "sparse", "weights")
+loss_reg_op = regularization_loss(w_pred_denorm, conv_W, lambda1)
+##total loss
+total_loss = loss_reg_op + loss_seg_op
 
+conv_variables = get_train_var("conv")
 optimizer = tf.train.AdamOptimizer(learning_rate=lr)
-train_op = optimizer.minimize(total_loss, global_step=global_step)
+train_op = optimizer.minimize(total_loss, global_step=global_step, var_list=conv_variables)
+
 
 ##Create an visualization for showing the segmentation output of validation images
-# large sampled output
-Y_denorm = Y * (max_xtd_out - min_xtd_out) + min_xtd_out
-y_pred_seg_large = prediction_net(F, Y_denorm)
-y_pred_seg_large_prob = tf.nn.softmax(y_pred_seg_large, dim = 1)
-
-# small sampled output
-X_denorm = X * (max_xtd_out - min_xtd_in) + min_xtd_in
-y_pred_seg_small = prediction_net(F, X_denorm)
+## small sampled output
+y_pred_seg_small = prediction_net(F, X)
 y_pred_seg_small_prob = tf.nn.softmax(y_pred_seg_small, dim = 1)
 
-# model output
+## caffe model output
 pred_test = conv2d(F, W2, B2)
 pred_test_prob = tf.nn.softmax(pred_test, dim = 1)
 
@@ -124,11 +120,8 @@ pred_test_prob = tf.nn.softmax(pred_test, dim = 1)
 label_vis = tf.py_func(visualize, [LABEL, tf.constant(NUM_CLASSES)],tf.float32)
 label_vis = tf.reshape(label_vis, (-1, height, width, 3))
 
-y_pred_seg_pred_vis = tf.py_func(visualize, [y_pred_seg_pred_prob, tf.constant(NUM_CLASSES)],tf.float32)
+y_pred_seg_pred_vis = tf.py_func(visualize, [y_pred_seg_pred, tf.constant(NUM_CLASSES)],tf.float32)
 y_pred_seg_pred_vis = tf.reshape(y_pred_seg_pred_vis, (-1, height, width, 3))
-
-y_pred_seg_large_vis = tf.py_func(visualize, [y_pred_seg_large, tf.constant(NUM_CLASSES)],tf.float32)
-y_pred_seg_large_vis = tf.reshape(y_pred_seg_large_vis, (-1, height, width, 3))
 
 y_pred_seg_small_vis = tf.py_func(visualize, [y_pred_seg_small, tf.constant(NUM_CLASSES)],tf.float32)
 y_pred_seg_small_vis = tf.reshape(y_pred_seg_small_vis, (-1, height, width, 3))
@@ -136,26 +129,25 @@ y_pred_seg_small_vis = tf.reshape(y_pred_seg_small_vis, (-1, height, width, 3))
 pred_test_vis = tf.py_func(visualize, [pred_test, tf.constant(NUM_CLASSES)],tf.float32)
 pred_test_vis = tf.reshape(pred_test_vis, (-1, height, width, 3))
 
+y_pred_seg_pred_fine_vis = tf.py_func(visualize, [y_pred_seg_pred_fine, tf.constant(NUM_CLASSES)],tf.float32)
+y_pred_seg_pred_fine_vis = tf.reshape(y_pred_seg_pred_fine_vis, (-1, height, width, 3))
+
 ## logs
-tf.summary.scalar("regression_loss", loss_op)
+tf.summary.scalar("regression_loss", loss_reg_op)
 tf.summary.scalar("seg loss", loss_seg_op)
 tf.summary.scalar("total loss", total_loss)
-tf.summary.histogram('histogram fc1', get_variable('fc1', 'dense', 'weights'))
-tf.summary.histogram('histogram fc2', get_variable('fc2', 'dense', 'weights'))
-tf.summary.histogram('histogram fc3', get_variable('fc3', 'dense', 'weights'))
-tf.summary.histogram('histogram fc4', get_variable('fc4', 'dense', 'weights'))
 tf.summary.image('a ori image', IMG, max_outputs=1)
 tf.summary.image('b label', label_vis, max_outputs=1)
-tf.summary.image('c pred1', y_pred_seg_pred_vis, max_outputs=1)
-tf.summary.image('d small', y_pred_seg_small_vis, max_outputs=1)
-tf.summary.image('e large', y_pred_seg_large_vis, max_outputs=1)
+tf.summary.image('c pred', y_pred_seg_pred_vis, max_outputs=1)
+tf.summary.image('d fine', y_pred_seg_pred_fine_vis, max_outputs=1)
+tf.summary.image('e small', y_pred_seg_small_vis, max_outputs=1)
 tf.summary.image('f test', pred_test_vis, max_outputs=1)
 
 merged_summary_op = tf.summary.merge_all()
 
 # Start training
-init = tf.global_variables_initializer()
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
+init = tf.global_variables_initializer()
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
     # Run the initializer
@@ -163,36 +155,40 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     summary_writer = tf.summary.FileWriter(logs_path, sess.graph)
     if (args.regmodel != ""):
         load(args.regmodel, sess, ignore_missing=True)
+
+    convW = net.params['conv1_1_D_f'][0].data[...]
+    convB = net.params['conv1_1_D_f'][1].data[...]
+
+    small_W = np.reshape(convW, (NUM_CLASSES, -1))
+    small_B = convB[:, np.newaxis]
+    small_weights = np.hstack((small_W, small_B))
+
+    convW = conv_caffe_to_tf(convW, NUM_CLASSES)
     for step in range(1, num_steps+1):
         net.forward()
         image = net.blobs['data'].data
         features = net.blobs['conv1_2_D'].data
         label = net.blobs['label'].data
         predicted = net.blobs['prob'].data
-        convW = net.params['conv1_1_D_f'][0].data[...]
-        convB = net.params['conv1_1_D_f'][1].data[...]
-        convW = conv_caffe_to_tf(convW, NUM_CLASSES)
 
         image2 = image[:, [2, 1, 0], :,:]
         image2 = np.transpose(image2, (0, 2, 3, 1)) / 255.0
-
-        batch_x, batch_y = data.next_batch()
         # Run optimization op (backprop)
-        sess.run(train_op, feed_dict={X: batch_x, Y: batch_y, F: features, GT: label, phase: True})
-
+        sess.run(train_op, feed_dict={X: small_weights, F: features, GT: label, phase2: True, phase: False})
 
         if  step % display_step == 0 or step == 1:
             # Calculate batch loss and accuracy
-            [regl, segl, tl, lr2, lambda_val, summary] = sess.run([loss_op, loss_seg_op, total_loss, lr, lambda_tf, merged_summary_op],
-                                    feed_dict={X: batch_x, Y: batch_y, F: features, GT: label, phase: False, W2: convW, B2: convB, IMG: image2, LABEL: label})
-            print("Step " + str(step) + ", Minibatch Loss= " + \
-                  "{:.5f}, {:.5f}, {:.5f}, learning rate: {:.5f}, lambda: {:.2f}".format(regl, segl, tl, lr2, lambda_val))
+           # [pred, small, test_tf, summary] = sess.run([y_pred_seg_pred_prob, y_pred_seg_small_prob, pred_test_prob, merged_summary_op], \
+            #                feed_dict={X: small_W, F: features, GT: label, phase: False, phase2: False, W2: convW, B2: convB, IMG: image2, LABEL: label2})
 
-           # [pred, large, small, test_tf, summary] = sess.run([y_pred_seg_pred_prob, y_pred_seg_large_prob, y_pred_seg_small_prob, pred_test_prob, merged_summary_op], \
-          #                  feed_dict={X: batch_x, Y: batch_y, F: features, GT: label, phase: False, W2: convW, B2: convB, IMG: image2, LABEL: label})
+            [regl, segl, tl, lr2, summary] = sess.run([loss_reg_op, loss_seg_op, total_loss, lr, merged_summary_op],
+                            feed_dict={X: small_weights, F: features, GT: label, phase: False, phase2: False, W2: convW, B2: convB, IMG: image2, LABEL: label})
+
             summary_writer.add_summary(summary, step)
-            if (step % 10000 == 0):
-                snapshot_npy(sess, output_dir, "reg2_", step)
+
+            print("Step " + str(step) + ", Minibatch Loss= " + \
+                  "{:.5f} + {:.5f} = {:.5f}, learning rate: {:.5f}".format(regl, segl, tl, lr2))
+           # pdb.set_trace()
             '''
             pred = visualize(pred)
             large = visualize(large)
@@ -230,10 +226,12 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         #    plt2.title("caffe Weights")
             plt2.show()
             '''
+        if (step % 10000 == 0):
+            snapshot_npy(sess, output_dir, "final_", step)
 
 
 
-
+#snapshot_npy(sess, num_steps)
     print("Optimization Finished!")
 
 
