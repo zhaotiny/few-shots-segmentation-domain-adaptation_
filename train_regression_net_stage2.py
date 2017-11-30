@@ -49,18 +49,18 @@ for file in files:
 height = 480
 width = 640
 n_channel = 64
-learning_rate = 0.01
+learning_rate = 0.001
 num_steps = 50000
 batch_size = 6
 NUM_CLASSES = batch_size
-display_step = 50
+display_step = 400
 # Network Parameters
 num_input = 577 #  data input (64 * 3 * 3 + 1)
 n_hidden_1 = 1024 # 1st layer number of neurons
 n_hidden_2 = 256 # 2nd layer number of neurons
 n_hidden_3 = 1024 # 3rd layder number of neurous
 alpha = 0.01 # alpha for leaky relu
-lambda1 = 10.0 # ratio between regression loss and seg loss
+lambda1 = 5.0 # ratio between regression loss and seg loss
 lambda_min = 1.0
 
 # tf Graph input
@@ -80,7 +80,7 @@ lambda_tf = tf.train.exponential_decay(lambda1, global_step,
 lambda_tf = tf.maximum(tf.constant(lambda_min), lambda_tf)
 # decreasing learning rate
 lr = tf.train.exponential_decay(learning_rate, global_step,
-                                1000, 0.95, staircase=True)
+                                5000, 0.95, staircase=True)
 ## input data
 data = Dataset2(args.pair, val = False, defstat = True, numC = NUM_CLASSES)
 
@@ -186,7 +186,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             [regl, segl, tl, lr2, lambda_val, summary] = sess.run([loss_op, loss_seg_op, total_loss, lr, lambda_tf, merged_summary_op],
                                     feed_dict={X: batch_x, Y: batch_y, F: features, GT: label, phase: False, W2: convW, B2: convB, IMG: image2, LABEL: label})
             print("Step " + str(step) + ", Minibatch Loss= " + \
-                  "{:.5f}, {:.5f}, {:.5f}, learning rate: {:.5f}, lambda: {:.2f}".format(regl, segl, tl, lr2, lambda_val))
+                  "{:.5f} + {:.5f} = {:.5f}, learning rate: {:.5f}, lambda: {:.2f}".format(regl, segl, tl, lr2, lambda_val))
 
            # [pred, large, small, test_tf, summary] = sess.run([y_pred_seg_pred_prob, y_pred_seg_large_prob, y_pred_seg_small_prob, pred_test_prob, merged_summary_op], \
           #                  feed_dict={X: batch_x, Y: batch_y, F: features, GT: label, phase: False, W2: convW, B2: convB, IMG: image2, LABEL: label})

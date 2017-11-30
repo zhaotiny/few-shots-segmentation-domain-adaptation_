@@ -38,7 +38,7 @@ for file in files:
 
 # Parameter
 learning_rate = 0.01
-num_steps = 40000
+num_steps = 10000
 batch_size = 1000
 display_step = 400
 # Network Parameters
@@ -93,7 +93,7 @@ with tf.Session() as sess:
         load(args.model, sess, ignore_missing=True)
      # op to write logs to Tensorboard
     summary_writer = tf.summary.FileWriter(logs_path, sess.graph)
-    data = Dataset(args.pair, val = True)
+    data = Dataset(args.pair, val = False)
     for step in range(1, num_steps+1):
         batch_x, batch_y = data.next_batch(batch_size)
         sess.run(train_op, feed_dict={X: batch_x, Y: batch_y, phase: True})
