@@ -1,0 +1,2 @@
+/home/selfdriving/zhaotiny/SegNet/cityscape/images/krefeld_000000_028638_leftImg8bit.png /home/selfdriving/zhaotiny/SegNet/cityscape/labelsIdx/krefeld_000000_028638_gtFine_labelIds.png
+/home/selfdriving/zhaotiny/SegNet/cityscape/images/hanover_000000_042255_leftImg8bit.png /home/selfdriving/zhaotiny/SegNet/cityscape/labelsIdx/hanover_000000_042255_gtFine_labelIds.png
