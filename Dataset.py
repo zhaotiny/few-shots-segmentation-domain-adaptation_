@@ -1,6 +1,6 @@
 import numpy as np
 import  pdb
-   ## sort the classifier pairs to make sure consecutive N pair are from same model
+#### Provide input pair of small sampled and large sampled classifiers
 def compare(str11, str22):
     str1 = str11[0]
     str2 = str22[0]
@@ -42,47 +42,6 @@ def compare(str11, str22):
     else:
         return np.sign(totalC1 - totalC2)
 
-def compare2(str11, str22):
-    str1 = str11
-    str2 = str22
-    sptstr1 = str1.split('/')[-1]
-    sptstr2 = str2.split('/')[-1]
-    sptstr1 = sptstr1[:-4]
-    sptstr2 = sptstr2[:-4]
-
-    sptstr1 = sptstr1.split('_')
-    sptstr2 = sptstr2.split('_')
-
-    totalC1 = int(sptstr1[0])
-    curC1 = int(sptstr1[1])
-    numS1 = int(sptstr1[2])
-    ithS1 = int(sptstr1[3])
-    iter1 = int(sptstr1[4])
-    reg1 = int(sptstr1[5][-1])
-
-    totalC2 = int(sptstr2[0])
-    curC2 = int(sptstr2[1])
-    numS2 = int(sptstr2[2])
-    ithS2 = int(sptstr2[3])
-    iter2 = int(sptstr2[4])
-    reg2 = int(sptstr2[5][-1])
-    if (totalC1 == totalC2):
-        if (numS1 == numS2):
-            if (ithS1 == ithS2):
-                if (iter1 == iter2):
-                    if (reg1 == reg2):
-                        return (curC1 - curC2)
-                    else:
-                        return (reg1 - reg2)
-                else:
-                    return (iter1 - iter2)
-            else:
-                return (ithS1 - ithS2)
-        else:
-            return (numS1 - numS2)
-    else:
-        return (totalC1 - totalC2)
-
 class Dataset(object):
 
     def __init__(self, file = "", dimension = 577, val = False, defstat = False):
@@ -97,7 +56,7 @@ class Dataset(object):
                 self.train_size = int(0.8 * self.total_size);
             else:
                 self.train_size = self.total_size
-            self.union_shuffled()
+           # self.union_shuffled()
         else:
             self.defsta = True
         self.computeStatic()

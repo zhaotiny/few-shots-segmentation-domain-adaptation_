@@ -2,6 +2,8 @@ import numpy as np
 import numpy.matlib
 import pdb
 from Dataset import Dataset
+#### Provide input pairs of small sampled and large sampled models
+#### Note that one model might contain several classifiers
 class Dataset2(Dataset):
     def __init__(self, file, dimension = 577, val = False, defstat = False, numC = 6):
         super(Dataset2, self).__init__(file, dimension, val, defstat)
