@@ -1,70 +1,79 @@
 """
-train a network to predict the layout distribution
+Simple tester for the vgg19_trainable
 """
 
 import tensorflow as tf
 
 import vgg19_trainable as vgg19
+import utils
 import pdb
 from Dataset import Dataset
+import glob
 import os
 import numpy as np
-import re
-NUM_CLASS = 5
+np.set_printoptions(precision=4, suppress=True)
+#img1 = utils.load_image("./test_data/tiger.jpeg")
+#img1_true_result = [1 if i == 292 else 0 for i in range(1000)]  # 1-hot result for tiger
+logs_path = './logs'
+if (not os.path.exists(logs_path)):
+    os.mkdir(logs_path)
+files = glob.glob(logs_path + '/*')
+for file in files:
+    if (os.path.isfile(file)):
+        os.remove(file)
 
+NUM_CLASS = 6
+total_iter = 200000
+batch_size = 20
+num_iter = total_iter / batch_size
+display_step = 50
+learning_rate = 0.0008
+#gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
 images = tf.placeholder(tf.float32, [None, 224, 224, 3])
 true_out = tf.placeholder(tf.float32, [None, NUM_CLASS])
-file_name = 'cityAll.txt'
-display_step = 40
-#init = tf.global_variables_initializer()
+train_mode = tf.placeholder(tf.bool)
+global_step = tf.Variable(0, trainable=False)
+init = tf.global_variables_initializer()
+epsilon = tf.constant(value=1e-10)
 
-vgg = vgg19.Vgg19('vgg19.npy')
-vgg.build(images)
+vgg = vgg19.Vgg19('5000.npy')
+vgg.build(images, train_mode)
+train_layers = ['fc8', 'fc7']
+var_list = [v for v in tf.trainable_variables() if v.name.split('/')[0] in train_layers]
+#cost = tf.reduce_sum(- tf.log(vgg.prob + epsilon) * true_out, 1)
+#cost = tf.reduce_mean(cost)
+lr = tf.train.exponential_decay(learning_rate, global_step,
+                                1000, 0.90, staircase=True)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = vgg.fc8, labels= true_out))
+optimizer  = tf.train.AdamOptimizer(learning_rate= lr)
+train_op = optimizer.minimize(cost,  global_step=global_step, var_list = var_list)
 
-data = Dataset(file_name, num_classes=NUM_CLASS)
+data = Dataset('train.txt')
 
-f = open(file_name, 'r')
-output_file = []
-for line in f:
-    files = line.strip('\r\n').split()
-    tmp = files[1]
-    tmp = re.sub('freq', 'freq_pred', tmp)
-    if (not os.path.exists(os.path.dirname(tmp))):
-        os.mkdir(os.path.dirname(tmp))
-
-    output_file.append(tmp)
-f.close()
-
-num_sample = data.total_size
-batch_size = 1
-num_Iter = num_sample / batch_size
-
-avg_loss = 0.0
-np.set_printoptions(precision=3, suppress=True)
-count = 0
+tf.summary.scalar('loss', cost)
+merge_op = tf.summary.merge_all()
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
-    for step in range(0, num_sample):
+    summary_writer = tf.summary.FileWriter(logs_path, sess.graph)
+    for step in range(1, num_iter + 1):
         X, Y = data.next_batch(batch_size)
-        [prob_val] = sess.run([vgg.prob], feed_dict={images: X})
-        prov_val_tmp = np.zeros((1, NUM_CLASS))
-        prov_val_tmp[0][0] = prob_val[0][0]
-        prov_val_tmp[0][1] = prob_val[0][1] + prob_val[0][2]
-        prov_val_tmp[0][2] = prob_val[0][3]
-        prov_val_tmp[0][3] = prob_val[0][4]
-        prov_val_tmp[0][4] = prob_val[0][5]
-
-        if (step % display_step == 0):
-            print prov_val_tmp
-            print Y
-            print
-        freq = prov_val_tmp.squeeze(0)
-        np.save(output_file[step], freq)
-
+      #  pdb.set_trace()
+        sess.run(train_op, feed_dict={images: X, true_out: Y, train_mode: True})
+        if (step % display_step == 0 or step == 1):
+            [loss, lr_val, prob_val, gt_val, merge] = sess.run([cost, lr, vgg.prob, true_out, merge_op],
+                                             feed_dict={images: X, true_out: Y, train_mode: True})
+            print "loss at " + str(step) + " {:.5f}".format(loss) + " lr: {:.5f}".format(lr_val)
+            prob_val = np.average(prob_val, 0);
+            gt_val = np.average(gt_val, 0);
+            print prob_val
+            print gt_val
+            summary_writer.add_summary(merge, step)
+        if (step % 2000 == 0):
+            vgg.save_npy(sess, str(step) + '.npy')
     # test classification
   #  prob = sess.run(vgg.prob, feed_dict={images: batch1, train_mode: False})
     # test classification again, should have a higher probability about tiger
    # prob = sess.run(vgg.prob, feed_dict={images: batch1, train_mode: False})
    # utils.print_prob(prob[0], './synset.txt')
     # test save
+    #vgg.save_npy(sess, './test-save.npy')
