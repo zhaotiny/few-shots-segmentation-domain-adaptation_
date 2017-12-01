@@ -36,7 +36,7 @@ global_step = tf.Variable(0, trainable=False)
 init = tf.global_variables_initializer()
 epsilon = tf.constant(value=1e-10)
 
-vgg = vgg19.Vgg19('5000.npy')
+vgg = vgg19.Vgg19('vgg19.npy')
 vgg.build(images, train_mode)
 train_layers = ['fc8', 'fc7']
 var_list = [v for v in tf.trainable_variables() if v.name.split('/')[0] in train_layers]
