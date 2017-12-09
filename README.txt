@@ -1,6 +1,6 @@
 This project is about to apply the learning to learn method to solve the segmentation domain adaptation. Specifically,
 we focus on semi-supervised domain adaptation (Few-shot learning). Our work is based on SegNet.
-
+For presentation: please see https://docs.google.com/presentation/d/1e0X3vspJcGKNs_-wYLLRe-LuQ7j9IZzUUZOXBGoGcJo/edit#slide=id.g2b58be7c28_3_296
 
 The overall procedure is as followed:
 1. Obtain lots of pairs of classifiers from models learnt from small samples and those learnt from large samples in
