@@ -1,17 +1,6 @@
 ##############################
 ## train a regression network that maps the models learnt from small samples to models learnt from large samples
-import numpy as np
-import matplotlib.pyplot as plt
-import os.path
-import json
-import scipy
 import argparse
-import math
-import pylab
-import pdb
-from sklearn.preprocessing import normalize
-import sys
-import pdb
 import tensorflow as tf
 import numpy
 import matplotlib.pyplot as plt
@@ -20,6 +9,7 @@ from Dataset import Dataset
 from function_module import regress_net, get_variable, load, snapshot_npy
 rng = numpy.random
 import glob
+import pdb
 # Import arguments
 parser = argparse.ArgumentParser()
 logs_path = './logs1'
@@ -90,10 +80,11 @@ with tf.Session() as sess:
     # Run the initializer
     sess.run(init)
     if (args.regmodel != ""):
-        load(args.model, sess, ignore_missing=True)
+        load(args.regmodel, sess, ignore_missing=True)
      # op to write logs to Tensorboard
     summary_writer = tf.summary.FileWriter(logs_path, sess.graph)
     data = Dataset(args.pair, val = False)
+    pdb.set_trace()
     for step in range(1, num_steps+1):
         batch_x, batch_y = data.next_batch(batch_size)
         sess.run(train_op, feed_dict={X: batch_x, Y: batch_y, phase: True})
@@ -110,9 +101,10 @@ with tf.Session() as sess:
             print("Testing loss: {:.6f} :{:.6f}".format(loss, loss2));
 
         if (step % 10000 == 0):
-            snapshot_npy(sess, output_dir, "11_", step)
+            snapshot_npy(sess, output_dir, "111_", step)
     print("Optimization Finished!")
     # Testing
+    pdb.set_trace()
     batch_x, batch_y = data.val_set()
     [loss] = sess.run([total_loss], feed_dict={X: batch_x, Y: batch_y, phase: False})
     print("Testing loss: {:.6f}".format(loss));

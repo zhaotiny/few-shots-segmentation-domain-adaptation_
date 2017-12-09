@@ -38,17 +38,6 @@ For step 6, to make the data to fit into the gpu and increase the training speed
             --name=final.npy --normal
 For step 7, run python test_regression_simple.py --conv=final.npy --list=city_val_f2gt.txt --save=results/
 
-
-
-
-
-
-
-run the program: python trainRegressNet.py --pair=model_pair.txt
-model_pair.txt specify the path to the pair of model pairs
-
-CUDA_VISIBLE_DEVICES=0 python trainRegressNet2.py --pair=model_pair_6.txt --regmodel=./models/15000.npy --model=../Models/segnet_inference.prototxt --weights=../Models/Inference/test_weights.caffemodel
-
 28_16_50_1_2000_reg1.npy
 28: total number of categories
 16: current category
@@ -57,12 +46,3 @@ CUDA_VISIBLE_DEVICES=0 python trainRegressNet2.py --pair=model_pair_6.txt --regm
 2000: iterations
 reg1: small regularization
 
-28 -> 50 -> 1 -> 2000 -> reg1 -> 16
-
-
-CUDA_VISIBLE_DEVICES=0 python ./SegNet/Scripts/test_regression.py --model ./SegNet/Models/segnet_inference_6_city_val.prototxt --weights ./SegNet/Models/city_test_models_cityall/segnet1_2_iter_5000.caffemodel --iter 500 --list ./SegNet/cityscape/cityValIdx.txt --save ./SegNet/cityscape/reg_test/ --conv ./SegNet/Scripts/tmp.npy
-
-extract the transformed model:
-CUDA_VISIBLE_DEVICES=2 python get_transformed_model.py --regmodel=./models/reg1_20000.npy --model=../Models/segnet_inference_train_6_city.prototxt --weights=../Models/city_test_models_cityall/segnet1_1_iter_5000.caffemodel --folder=../test_results/model_reg1_50000/ --name=20000.npy
-
-test learning_to_learn

@@ -7,7 +7,6 @@ import argparse
 import math
 import pylab
 import pdb
-from sklearn.preprocessing import normalize
 caffe_root = '/home/selfdriving/zhaotiny/SegNet/caffe-segnet-cudnn52/' 			# Change this to the absolute directoy to SegNet Caffe
 logs_path = './logs2'
 output_dir = './models'

@@ -2,6 +2,7 @@ import tensorflow as tf
 import os
 import numpy as np
 import re
+import pdb
 ## leaky relu
 def lrelu(x, alpha):
   return tf.nn.relu(x) - alpha * tf.nn.relu(-x)
@@ -88,6 +89,28 @@ def snapshot_npy(sess, output_dir, name, iter):
     filename = output_dir + '/' + name + str(iter) + '.npy'
     np.save(filename,data);
     print 'Wrote snapshot to: {:s}'.format(filename)
+
+def snapshot_npy2(sess, name):
+    data = {}
+    all_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+    valid_str = ["weights", "biases", "moving_mean", "moving_variance", "beta", "gamma"]
+    for i in range(len(all_variables)):
+        variable_name = all_variables[i].name
+        parts = variable_name.split('/');
+        if (len(parts) == 3):
+            scope_name = parts[0] + '/' + parts[1]
+            vari_name_temp = parts[-1].split(':')[0]
+            if (vari_name_temp not in valid_str):
+                continue
+        else:
+            continue
+        vari_name = parts[-1].split(':')[0]
+        if (scope_name not in data.keys()):
+            data[scope_name] = {}
+        data[scope_name][vari_name] = sess.run(all_variables[i])
+    filename = name
+    np.save(filename,data);
+    print 'Wrote snapshot to: {:s}'.format(filename)
 # get variable given scope/name/weight:0
 def get_variable(scope, name, weights):
     tmp = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = scope + '/' + name + '/' + weights + ':0')
@@ -117,18 +140,31 @@ def weighted_loss(logits, labels, num_classes, head=None):
 
     cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
 
+  #  cross_entropy_mean = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = logits, labels= labels))
+
     return cross_entropy_mean
 
 ## compute the segmentaion loss
-def cal_loss(logits, labels, NUM_CLASSES):
+def cal_loss(logits, labels, NUM_CLASSES, playing = True):
     if (NUM_CLASSES == 6):
-        loss_weight = np.array([
-            0.2533,
-            3.1525,
-            3.4525,
-            21.3407,
-            32.5793,
-            0.1050]) # class 0~5
+        if (playing):
+            loss_weight = np.array([
+                0.2533,
+                3.1525,
+                3.4525,
+                21.3407,
+                32.5793,
+                0.1050]) # class 0~5
+            print "use playing weights"
+        else :
+            loss_weight = np.array([
+                0.2603,
+                1.3255,
+                3.4525,
+                6.0405,
+                11.6040,
+                0.1462]) # class 0~5
+            print "use cityscape weights"
     else:
         loss_weight = np.array([
             1.1702,
@@ -229,8 +265,8 @@ def visualize(predicted, NUM_CLASSES):
     return rgb
 
 ## define the layer of standard conv
-def sparse_conv(x, num_outputs, kernel_size, phase, scope):
-    with tf.variable_scope(scope):
+def sparse_conv(x, num_outputs, kernel_size, phase, scope, reuse = None):
+    with tf.variable_scope(scope, reuse = reuse):
         return tf.contrib.layers.conv2d(x, num_outputs, kernel_size,
                                 padding='SAME', data_format = "NCHW", scope = "sparse")
 ## get train variables given scope
@@ -245,13 +281,18 @@ def get_train_var(scope):
             continue
     return conv_variables
 #define regularization loss
-def regularization_loss(w_pred_denorm, conv_W, lambda1):
+def regularization_loss(w_pred_denorm, conv_W, lambda1, normal = True):
     W = w_pred_denorm[:, 0: 576]
    # B = w_pred_denorm[:, 576]
     W = tf.transpose(W, (1, 0))
     W = tf.reshape(W, (64, 3, 3, -1))
     W = tf.transpose(W, (1, 2, 0, 3))
-    reg_loss = lambda1 * tf.nn.l2_loss(conv_W - W);
+    if (normal):
+        reg_loss = lambda1 * tf.nn.l2_loss(conv_W)
+        print "use normal regulartization !!!!", lambda1
+    else:
+        reg_loss = lambda1 * tf.nn.l2_loss(conv_W - W);
+        print "use regression regularization !!!!!", lambda1
     #oss = tf.reduce_mean(loss + beta * regularizer)
     return reg_loss
 
@@ -263,3 +304,9 @@ def conv_caffe_to_tf(convW, NUM_CLASSES):
     convW = np.reshape(convW, (64, 3, 3, -1))
     convW = np.transpose(convW, (1, 2, 0, 3))
     return convW
+#calculate the cross entropy loss between pred and gt
+def cal_dist_loss(pred, gt):
+    epsilon = tf.constant(value=1e-8)
+    dist_loss = -tf.reduce_sum(gt * tf.log(pred + epsilon), axis=[1])
+    dist_loss = tf.reduce_mean(dist_loss)
+    return dist_loss

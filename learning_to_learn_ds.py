@@ -32,12 +32,12 @@ parser.add_argument('--name', type = str, default = "ting.npy",
 args = parser.parse_args()
 
 # create or delete other files in tensorboard dir
-if (not os.path.exists(logs_path)):
-    os.mkdir(logs_path)
-files = glob.glob(logs_path + '/*')
-for file in files:
-    if (os.path.isfile(file)):
-        os.remove(file)
+#if (not os.path.exists(logs_path)):
+#    os.mkdir(logs_path)
+#files = glob.glob(logs_path + '/*')
+#for file in files:
+#    if (os.path.isfile(file)):
+#        os.remove(file)
 
 # Parameter
 height = 480
