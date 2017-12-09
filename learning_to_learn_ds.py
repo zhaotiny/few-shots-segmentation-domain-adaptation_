@@ -32,12 +32,12 @@ parser.add_argument('--name', type = str, default = "ting.npy",
 args = parser.parse_args()
 
 # create or delete other files in tensorboard dir
-#if (not os.path.exists(logs_path)):
-#    os.mkdir(logs_path)
-#files = glob.glob(logs_path + '/*')
-#for file in files:
-#    if (os.path.isfile(file)):
-#        os.remove(file)
+if (not os.path.exists(logs_path)):
+    os.mkdir(logs_path)
+files = glob.glob(logs_path + '/*')
+for file in files:
+    if (os.path.isfile(file)):
+        os.remove(file)
 
 # Parameter
 height = 480
@@ -157,11 +157,11 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             # Calculate batch loss and accuracy
             [regl, segl, distl, tl, lr2, a_val, summary] = sess.run([loss_reg_op, loss_seg_op, loss_dist_op, total_loss, lr, y_pred_seg_pred_dist, merged_summary_op],
                             feed_dict={F: features, GT: label, F2: features2, GT2: label2, phase2: False, W2: convW, B2: convB})
-          #  summary_writer.add_summary(summary, step)
+            summary_writer.add_summary(summary, step)
             print("Step " + str(step) + ", Minibatch Loss= " + \
                   "{:.5f} + {:.5f} + {:.5f} = {:.5f}, learning rate: {:.5f}".format(regl, segl, distl,  tl, lr2))
     snapshot_npy(sess, output_dir, "final_", num_steps)
-    snapshot_npy2(sess, args.name)
+    #snapshot_npy2(sess, args.name)
 
 #snapshot_npy(sess, num_steps)
     print("Optimization Finished!")
