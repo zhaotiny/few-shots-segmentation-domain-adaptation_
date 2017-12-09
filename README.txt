@@ -36,7 +36,7 @@ For step 6, to make the data to fit into the gpu and increase the training speed
             features before the last classifier from caffemodel and store it using "extract_conv_features.py".
             After that, run python learning_to_learn_ds.py --f2gt=feature2GT.txt --conv=target.npy
             --name=final.npy --normal
-For step 7, run python test_regression_simple.py --conv=final.npy --list=city_val_f2gt.txt --save=results/
+For step 7, run python test.py --conv=final.npy --list=city_val_f2gt.txt --save=results/
 
 28_16_50_1_2000_reg1.npy
 28: total number of categories
